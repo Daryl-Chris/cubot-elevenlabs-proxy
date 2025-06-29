@@ -3,7 +3,7 @@ import requests
 import os
 
 app = Flask(__name__)
-ELEVEN_API_KEY = os.getenv("ELEVEN_API_KEY")
+DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 
 @app.route("/stt", methods=["POST"])
 def stt_proxy():
@@ -17,28 +17,22 @@ def stt_proxy():
     if not os.path.exists(file_path):
         return jsonify({"error": f"File '{filename}' not found"}), 404
 
-    files = {
-        "file": ("audio.wav", open(file_path, "rb"), "audio/wav")
+    headers = {
+        "Authorization": f"Token {DEEPGRAM_API_KEY}"
     }
 
-    payload = {
-        "model_id": "scribe_v1",
-        "tag_audio_events": "true"
-    }
-
-    try:
+    with open(file_path, "rb") as audio:
         response = requests.post(
-            "https://api.elevenlabs.io/v1/speech-to-text",
-            headers={
-                "xi-api-key": ELEVEN_API_KEY
-            },
-            files=files,
-            data=payload
+            "https://api.deepgram.com/v1/listen",
+            headers=headers,
+            data=audio
         )
 
-        return jsonify(response.json())
+    try:
+        text = response.json()["results"]["channels"][0]["alternatives"][0]["transcript"]
+        return jsonify({ "text": text })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to parse Deepgram response", "details": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
