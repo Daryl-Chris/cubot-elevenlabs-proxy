@@ -5,6 +5,9 @@ import os
 app = Flask(__name__)
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 
+# Ensure the audio folder exists at runtime
+os.makedirs("audio", exist_ok=True)
+
 @app.route("/upload", methods=["POST"])
 def upload_audio():
     if "file" not in request.files:
@@ -12,9 +15,12 @@ def upload_audio():
 
     audio = request.files["file"]
     save_path = os.path.join("audio", "audio.wav")
-    audio.save(save_path)
 
-    return jsonify({"status": "uploaded", "filename": "audio.wav"}), 200
+    try:
+        audio.save(save_path)
+        return jsonify({"status": "uploaded", "filename": "audio.wav"}), 200
+    except Exception as e:
+        return jsonify({"error": "Failed to save file", "details": str(e)}), 500
 
 @app.route("/stt", methods=["POST"])
 def stt_proxy():
