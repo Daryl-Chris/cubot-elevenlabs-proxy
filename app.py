@@ -5,6 +5,17 @@ import os
 app = Flask(__name__)
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 
+@app.route("/upload", methods=["POST"])
+def upload_audio():
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    audio = request.files["file"]
+    save_path = os.path.join("audio", "audio.wav")
+    audio.save(save_path)
+
+    return jsonify({"status": "uploaded", "filename": "audio.wav"}), 200
+
 @app.route("/stt", methods=["POST"])
 def stt_proxy():
     data = request.get_json()
