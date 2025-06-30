@@ -1,10 +1,9 @@
 from flask import Flask, request, jsonify
-import os, werkzeug, requests
+import os, requests
 
 app = Flask(__name__)
 UPLOAD_PATH = "audio/audio.wav"
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
-
 os.makedirs("audio", exist_ok=True)
 
 @app.route("/upload_raw", methods=["POST"])
@@ -23,7 +22,6 @@ def upload_raw():
         print("❌ Upload error:", e)
         return jsonify({"error": str(e)}), 500
 
-@app.route("/stt", methods=["POST"])
 @app.route("/stt", methods=["POST"])
 def stt():
     try:
@@ -46,10 +44,9 @@ def stt():
         print("📨 Response:", res.text[:300])
         res.raise_for_status()
 
-        text = res.json()["results"]["channels"][0]["alternatives"][0]["transcript"]
-        response = {"text": text}
-        print("🧠 Returning:", response)
-        return jsonify(response), 200
+        text = res.json()["results"]["channels"][0]["alternatives"][0].get("transcript", "")
+        print("🧠 Returning:", {"text": text})
+        return jsonify({"text": text}), 200
 
     except Exception as e:
         print("💥 STT error:", e)
