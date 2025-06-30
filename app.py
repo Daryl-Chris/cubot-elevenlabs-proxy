@@ -24,6 +24,7 @@ def upload_raw():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/stt", methods=["POST"])
+@app.route("/stt", methods=["POST"])
 def stt():
     try:
         if not os.path.exists(UPLOAD_PATH):
@@ -46,7 +47,9 @@ def stt():
         res.raise_for_status()
 
         text = res.json()["results"]["channels"][0]["alternatives"][0]["transcript"]
-        return jsonify({"text": text}), 200
+        response = {"text": text}
+        print("🧠 Returning:", response)
+        return jsonify(response), 200
 
     except Exception as e:
         print("💥 STT error:", e)
