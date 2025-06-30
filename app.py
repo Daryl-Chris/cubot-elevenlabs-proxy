@@ -5,7 +5,6 @@ app = Flask(__name__)
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 UPLOAD_PATH = "audio/audio.wav"
 
-# Always ensure audio/ exists at runtime
 os.makedirs("audio", exist_ok=True)
 
 @app.route("/upload_raw", methods=["POST"])
@@ -13,8 +12,8 @@ def upload_raw():
     try:
         with open(UPLOAD_PATH, "wb") as f:
             f.write(request.get_data())
-        print("✅ Saved:", UPLOAD_PATH)
-        print("📂 audio contains:", os.listdir("audio"))
+        size = os.path.getsize(UPLOAD_PATH)
+        print(f"✅ Saved: {UPLOAD_PATH} ({size} bytes)")
         return jsonify({"status": "uploaded"}), 200
     except Exception as e:
         print("❌ Upload failed:", e)
@@ -24,19 +23,24 @@ def upload_raw():
 def stt():
     try:
         if not os.path.exists(UPLOAD_PATH):
-            print("❌ File not found:", UPLOAD_PATH)
             return jsonify({"error": "File not found"}), 404
 
-        headers = {"Authorization": f"Token {DEEPGRAM_API_KEY}"}
+        size = os.path.getsize(UPLOAD_PATH)
+        if size < 1000:
+            return jsonify({"error": "File too small"}), 400
+
+        headers = {
+            "Authorization": f"Token {DEEPGRAM_API_KEY}",
+            "Content-Type": "audio/wav"
+        }
+
         with open(UPLOAD_PATH, "rb") as f:
-            res = requests.post("https://api.deepgram.com/v1/listen",
-                                headers=headers, data=f)
+            res = requests.post("https://api.deepgram.com/v1/listen", headers=headers, data=f)
 
-        print("📨 Deepgram response:", res.status_code)
-        print("📨 Deepgram text:", res.text[:200])  # Trim if long
+        print("📨 Deepgram status:", res.status_code)
+        print("📨 Deepgram response:", res.text[:300])
 
-        res.raise_for_status()  # Raise if status != 200
-
+        res.raise_for_status()
         data = res.json()
         text = data["results"]["channels"][0]["alternatives"][0]["transcript"]
         return jsonify({"text": text}), 200
