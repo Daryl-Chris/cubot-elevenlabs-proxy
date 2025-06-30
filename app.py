@@ -1,23 +1,26 @@
 from flask import Flask, request, jsonify
-import os, requests
+import os, werkzeug, requests
 
 app = Flask(__name__)
-DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 UPLOAD_PATH = "audio/audio.wav"
+DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 
-# Ensure the audio folder exists
 os.makedirs("audio", exist_ok=True)
 
 @app.route("/upload_raw", methods=["POST"])
 def upload_raw():
     try:
-        with open(UPLOAD_PATH, "wb") as f:
-            f.write(request.get_data())
+        file = request.files.get("file")
+        if not file:
+            return jsonify({"error": "No file part"}), 400
+
+        file.save(UPLOAD_PATH)
         size = os.path.getsize(UPLOAD_PATH)
-        print(f"✅ Saved: {UPLOAD_PATH} ({size} bytes)")
-        return jsonify({"status": "uploaded"}), 200
+        print(f"✅ Uploaded: {UPLOAD_PATH} ({size} bytes)")
+        return jsonify({"status": "uploaded", "size": size}), 200
+
     except Exception as e:
-        print("❌ Upload failed:", e)
+        print("❌ Upload error:", e)
         return jsonify({"error": str(e)}), 500
 
 @app.route("/stt", methods=["POST"])
@@ -39,26 +42,21 @@ def stt():
             res = requests.post("https://api.deepgram.com/v1/listen", headers=headers, data=f)
 
         print("📨 Deepgram status:", res.status_code)
-        print("📨 Deepgram response:", res.text[:300])
+        print("📨 Response:", res.text[:300])
         res.raise_for_status()
 
-        data = res.json()
-        text = data["results"]["channels"][0]["alternatives"][0]["transcript"]
+        text = res.json()["results"]["channels"][0]["alternatives"][0]["transcript"]
         return jsonify({"text": text}), 200
 
     except Exception as e:
-        print("💥 STT error:", str(e))
+        print("💥 STT error:", e)
         return jsonify({"error": "STT failed", "details": str(e)}), 500
 
 @app.route("/debug", methods=["GET"])
 def debug():
-    try:
-        if not os.path.exists(UPLOAD_PATH):
-            return jsonify({"error": "File not found"}), 404
-        size = os.path.getsize(UPLOAD_PATH)
-        return jsonify({"status": "found", "size": size}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    if not os.path.exists(UPLOAD_PATH):
+        return jsonify({"status": "missing"})
+    return jsonify({"status": "found", "size": os.path.getsize(UPLOAD_PATH)})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
